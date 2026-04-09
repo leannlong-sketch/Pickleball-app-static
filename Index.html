@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pickleball League App</title>
+
+<style>
+body { font-family: Arial; margin:0; }
+header { background:#f08080; padding:1rem; color:white; }
+nav a { margin-right:1rem; color:white; }
+section { padding:1rem; border-bottom:1px solid #ccc; }
+table { width:100%; border-collapse: collapse; margin-top:10px;}
+td, th { border:1px solid #ccc; padding:6px; text-align:center;}
+button { margin:5px; }
+</style>
+
+</head>
+<body>
+
+<header>
+<h1>Pickleball League</h1>
+<nav>
+<a href="#teams">Teams</a>
+<a href="#schedule">Schedule</a>
+<a href="#standings">Standings</a>
+<a href="#subs">Subs</a>
+</nav>
+</header>
+
+<section id="teams">
+<h2>Teams</h2>
+<div id="team-list"></div>
+</section>
+
+<section id="schedule">
+<h2>Schedule</h2>
+<button onclick="generateSchedule()">Generate Schedule</button>
+<div id="schedule-list"></div>
+</section>
+
+<section id="standings">
+<h2>Standings</h2>
+<div id="standings-list"></div>
+</section>
+
+<section id="subs">
+<h2>Subs</h2>
+
+<h3>Sign Up</h3>
+<input id="sub-name" placeholder="Name">
+<input id="sub-dupr" placeholder="DUPR">
+<input id="sub-email" placeholder="Email">
+<input id="sub-phone" placeholder="Phone (optional)">
+<button onclick="addSub()">Add Sub</button>
+
+<h3>Available Subs</h3>
+<div id="sub-list"></div>
+
+<h3>Request Sub</h3>
+<input id="req-team" placeholder="Team">
+<input id="req-phone" placeholder="Your Phone">
+<button onclick="requestSub()">Send Request</button>
+
+</section>
+
+<script>
+
+let teams = [
+{name:"Team A", dupr:4.2, ranking:0},
+{name:"Team B", dupr:4.1, ranking:0},
+{name:"Team C", dupr:3.9, ranking:0},
+{name:"Team D", dupr:4.3, ranking:0},
+{name:"Team E", dupr:3.8, ranking:0},
+{name:"Team F", dupr:4.0, ranking:0},
+{name:"Team G", dupr:4.4, ranking:0},
+{name:"Team H", dupr:3.7, ranking:0}
+];
+
+let schedule = [];
+let subs = [];
+
+function renderTeams(){
+let html="";
+teams.forEach((t,i)=>{
+html+=`<div>
+${t.name} (DUPR ${t.dupr})
+<button onclick="editTeam(${i})">Edit</button>
+<button onclick="viewTeam(${i})">Calendar</button>
+</div>`;
+});
+document.getElementById("team-list").innerHTML=html;
+}
+
+function editTeam(i){
+let name = prompt("Team Name", teams[i].name);
+let dupr = prompt("DUPR", teams[i].dupr);
+if(name) teams[i].name=name;
+if(dupr) teams[i].dupr=parseFloat(dupr);
+renderTeams();
+}
+
+function viewTeam(i){
+let team=teams[i];
+let matches=schedule.filter(m=>m.t1===team.name||m.t2===team.name);
+let msg="Schedule:\n";
+matches.forEach(m=>{
+let opp = m.t1===team.name?m.t2:m.t1;
+msg+=`${opp} Block ${m.block} Court ${m.court}\n`;
+});
+alert(msg);
+}
+
+function generateSchedule(){
+schedule=[];
+let sorted=[...teams].sort((a,b)=>b.ranking-a.ranking);
+
+for(let i=0;i<sorted.length;i+=2){
+let t1=sorted[i];
+let t2=sorted[i+1];
+if(!t2) break;
+
+schedule.push({t1:t1.name,t2:t2.name,block:1,court:(i/2)+1,scores:[]});
+schedule.push({t1:t1.name,t2:t2.name,block:2,court:(i/2)+1,scores:[]});
+}
+
+renderSchedule();
+}
+
+function renderSchedule(){
+let html="<table><tr><th>T1</th><th>T2</th><th>Block</th><th>Court</th><th>Scores</th></tr>";
+schedule.forEach((m,i)=>{
+html+=`<tr>
+<td>${m.t1}</td>
+<td>${m.t2}</td>
+<td>${m.block}</td>
+<td>${m.court}</td>
+<td><button onclick="enterScores(${i})">Enter</button></td>
+</tr>`;
+});
+html+="</table>";
+document.getElementById("schedule-list").innerHTML=html;
+}
+
+function enterScores(i){
+let match=schedule[i];
+match.scores=[];
+for(let g=1;g<=3;g++){
+let a=prompt(`Game ${g} ${match.t1}`);
+let b=prompt(`Game ${g} ${match.t2}`);
+match.scores.push({a:parseInt(a),b:parseInt(b)});
+}
+calcStandings();
+}
+
+function calcStandings(){
+teams.forEach(t=>{
+let wins=0,diff=0;
+schedule.forEach(m=>{
+if(m.scores){
+m.scores.forEach(g=>{
+if(m.t1===t.name){
+if(g.a>g.b) wins++;
+diff+=g.a-g.b;
+}
+if(m.t2===t.name){
+if(g.b>g.a) wins++;
+diff+=g.b-g.a;
+}
+});
+}
+});
+t.ranking=wins+diff/10;
+});
+renderStandings();
+}
+
+function renderStandings(){
+let html="<table><tr><th>Team</th><th>Score</th></tr>";
+teams.sort((a,b)=>b.ranking-a.ranking).forEach(t=>{
+html+=`<tr><td>${t.name}</td><td>${t.ranking.toFixed(2)}</td></tr>`;
+});
+html+="</table>";
+document.getElementById("standings-list").innerHTML=html;
+}
+
+function addSub(){
+let name=document.getElementById("sub-name").value;
+let dupr=document.getElementById("sub-dupr").value;
+let email=document.getElementById("sub-email").value;
+let phone=document.getElementById("sub-phone").value;
+
+subs.push({name,dupr,email,phone,available:true});
+renderSubs();
+}
+
+function renderSubs(){
+let html="<table><tr><th>Name</th><th>DUPR</th><th>Phone</th></tr>";
+subs.filter(s=>s.available).forEach(s=>{
+html+=`<tr><td>${s.name}</td><td>${s.dupr}</td><td>${s.phone||""}</td></tr>`;
+});
+html+="</table>";
+document.getElementById("sub-list").innerHTML=html;
+}
+
+function requestSub(){
+alert("Email sent to all subs (simulated)");
+}
+
+renderTeams();
+renderStandings();
+
+</script>
+
+</body>
+</html>
